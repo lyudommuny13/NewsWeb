@@ -10,9 +10,19 @@ if (isset($_POST['add_category'])) {
     $slug = strtolower(str_replace(' ', '-', $name));
     
     try {
-        $stmt = $pdo->prepare("INSERT INTO categories (name, slug) VALUES (?, ?)");
-        if ($stmt->execute([$name, $slug])) {
-            $_SESSION['success_message'] = "Category added successfully!";
+        // Check if category already exists
+        $stmt = $pdo->prepare("SELECT COUNT(*) FROM categories WHERE name = ?");
+        $stmt->execute([$name]);
+        $existingCategory = $stmt->fetchColumn();
+
+        if ($existingCategory > 0) {
+            $_SESSION['error_message'] = "Category already exists!";
+        } else {
+            // Insert new category
+            $stmt = $pdo->prepare("INSERT INTO categories (name, slug) VALUES (?, ?)");
+            if ($stmt->execute([$name, $slug])) {
+                $_SESSION['success_message'] = "Category added successfully!";
+            }
         }
     } catch(PDOException $e) {
         $_SESSION['error_message'] = "Error adding category: " . $e->getMessage();
@@ -68,9 +78,11 @@ $stmt = $pdo->query("SELECT categories.*, COUNT(articles.id) as article_count
 $categories = $stmt->fetchAll();
 ?>
 
+
 <!DOCTYPE html>
 <html>
 <head>
+<link rel="icon" href="../includes/ad_images/logo.ico" type="image/x-icon">
     <title>Manage Categories - Admin Panel</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">

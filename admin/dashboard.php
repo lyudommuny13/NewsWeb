@@ -14,7 +14,8 @@ $totalViews = $pdo->query("SELECT SUM(views) FROM articles")->fetchColumn() ?? 0
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Admin Dashboard - NewsPortal</title>
+<link rel="icon" href="../includes/ad_images/logo.ico" type="image/x-icon">
+    <title>Admin Dashboard - KALI NEWS</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
@@ -154,7 +155,7 @@ $totalViews = $pdo->query("SELECT SUM(views) FROM articles")->fetchColumn() ?? 0
                 <!-- Welcome Card -->
                 <div class="welcome-card">
                     <h2><i class="fas fa-user-circle mr-2"></i>Welcome, <?php echo htmlspecialchars($_SESSION['user_name']); ?>!</h2>
-                    <p class="mb-0">Welcome to your admin dashboard. Here's an overview of your website.</p>
+                    <p class="mb-0">Welcome to my admin dashboard. Here's an overview of <strong>KALI NEWS</strong> website.</p>
                 </div>
 
                 <!-- Statistics Cards -->

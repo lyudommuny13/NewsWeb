@@ -4,6 +4,14 @@ require_once '../config/db_connect.php';
 require_once '../admin_check.php';
 checkAdmin();
 
+// Pagination settings
+$articlesPerPage = 10; // Number of articles per page
+$page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
+$offset = ($page - 1) * $articlesPerPage;
+
+// Get the selected category from the filter
+$selectedCategory = isset($_GET['category']) ? $_GET['category'] : '';
+
 // Handle article status toggle (published/draft)
 if (isset($_POST['toggle_status'])) {
     $article_id = $_POST['article_id'];
@@ -16,7 +24,7 @@ if (isset($_POST['toggle_status'])) {
     } catch(PDOException $e) {
         $_SESSION['error_message'] = "Error updating article status: " . $e->getMessage();
     }
-    header("Location: manage_articles.php");
+    header("Location: manage_articles.php?page=$page&category=$selectedCategory");
     exit();
 }
 
@@ -31,15 +39,32 @@ if (isset($_POST['delete_article'])) {
     } catch(PDOException $e) {
         $_SESSION['error_message'] = "Error deleting article: " . $e->getMessage();
     }
-    header("Location: manage_articles.php");
+    header("Location: manage_articles.php?page=$page&category=$selectedCategory");
     exit();
 }
 
-// Fetch all articles with category information
-$stmt = $pdo->query("SELECT articles.*, categories.name as category_name 
-                     FROM articles 
-                     LEFT JOIN categories ON articles.category_id = categories.id 
-                     ORDER BY articles.created_at DESC");
+// Fetch total number of articles based on the selected category
+$sqlCount = "SELECT COUNT(*) FROM articles 
+             LEFT JOIN categories ON articles.category_id = categories.id 
+             WHERE (:category = '' OR categories.name = :category)";
+$stmtCount = $pdo->prepare($sqlCount);
+$stmtCount->bindValue(':category', $selectedCategory, PDO::PARAM_STR);
+$stmtCount->execute();
+$totalArticles = $stmtCount->fetchColumn();
+$totalPages = ceil($totalArticles / $articlesPerPage);
+
+// Fetch articles with category information for the current page and selected category
+$sql = "SELECT articles.*, categories.name as category_name 
+        FROM articles 
+        LEFT JOIN categories ON articles.category_id = categories.id 
+        WHERE (:category = '' OR categories.name = :category)
+        ORDER BY articles.created_at DESC 
+        LIMIT :limit OFFSET :offset";
+$stmt = $pdo->prepare($sql);
+$stmt->bindValue(':category', $selectedCategory, PDO::PARAM_STR);
+$stmt->bindValue(':limit', $articlesPerPage, PDO::PARAM_INT);
+$stmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+$stmt->execute();
 $articles = $stmt->fetchAll();
 
 // Fetch categories for dropdown
@@ -50,6 +75,9 @@ $categories = $categories_stmt->fetchAll();
 <!DOCTYPE html>
 <html>
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="../includes/ad_images/logo.ico" type="image/x-icon">
     <title>Manage Articles - Admin Panel</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
@@ -86,10 +114,10 @@ $categories = $categories_stmt->fetchAll();
             border-radius: 5px;
         }
         .article-title {
-            max-width: 300px;
+            max-width: 200px; /* Adjust this value as needed */
+            white-space: nowrap;
             overflow: hidden;
             text-overflow: ellipsis;
-            white-space: nowrap;
         }
         .status-badge {
             padding: 5px 10px;
@@ -144,6 +172,9 @@ $categories = $categories_stmt->fetchAll();
                 <nav class="navbar navbar-light bg-white mb-4 shadow-sm">
                     <span class="navbar-brand mb-0 h1">Manage Articles</span>
                     <div>
+                        <a href="add_sponsored.php" class="btn btn-info mr-2">
+                            <i class="fas fa-folder-plus mr-2"></i>Add Sponsored Article
+                        </a>
                         <a href="manage_categories.php" class="btn btn-info mr-2">
                             <i class="fas fa-folder-plus mr-2"></i>Add/Manage Categories
                         </a>
@@ -156,10 +187,11 @@ $categories = $categories_stmt->fetchAll();
                 <!-- Category Filter -->
                 <div class="filters">
                     <div class="form-group">
-                        <select class="form-control" id="categoryFilter">
+                        <select class="form-control" id="categoryFilter" onchange="filterByCategory(this.value)">
                             <option value="">All Categories</option>
                             <?php foreach($categories as $category): ?>
-                                <option value="<?php echo htmlspecialchars($category['name']); ?>">
+                                <option value="<?php echo htmlspecialchars($category['name']); ?>" 
+                                    <?php echo $selectedCategory === $category['name'] ? 'selected' : ''; ?>>
                                     <?php echo htmlspecialchars($category['name']); ?>
                                 </option>
                             <?php endforeach; ?>
@@ -217,7 +249,7 @@ $categories = $categories_stmt->fetchAll();
                                         <div class="text-muted">No image</div>
                                     <?php endif; ?>
                                 </td>
-                                <td><?php echo htmlspecialchars($article['title']); ?></td>
+                                <td class="article-title"><?php echo htmlspecialchars($article['title']); ?></td>
                                 <td>
                                     <?php if($article['category_name']): ?>
                                         <span class="badge badge-info">
@@ -249,6 +281,33 @@ $categories = $categories_stmt->fetchAll();
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+
+                    <!-- Pagination -->
+                    <nav aria-label="Page navigation">
+                        <ul class="pagination justify-content-center">
+                            <?php if ($page > 1): ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="manage_articles.php?page=<?php echo $page - 1; ?>&category=<?php echo $selectedCategory; ?>" aria-label="Previous">
+                                        <span aria-hidden="true">&laquo;</span>
+                                    </a>
+                                </li>
+                            <?php endif; ?>
+
+                            <?php for ($i = 1; $i <= $totalPages; $i++): ?>
+                                <li class="page-item <?php echo $i == $page ? 'active' : ''; ?>">
+                                    <a class="page-link" href="manage_articles.php?page=<?php echo $i; ?>&category=<?php echo $selectedCategory; ?>"><?php echo $i; ?></a>
+                                </li>
+                            <?php endfor; ?>
+
+                            <?php if ($page < $totalPages): ?>
+                                <li class="page-item">
+                                    <a class="page-link" href="manage_articles.php?page=<?php echo $page + 1; ?>&category=<?php echo $selectedCategory; ?>" aria-label="Next">
+                                        <span aria-hidden="true">&raquo;</span>
+                                    </a>
+                                </li>
+                            <?php endif; ?>
+                        </ul>
+                    </nav>
                 </div>
             </div>
         </div>
@@ -259,24 +318,9 @@ $categories = $categories_stmt->fetchAll();
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
     
     <script>
-    $(document).ready(function() {
-        // Category filter functionality
-        $('#categoryFilter').on('change', function() {
-            var selectedCategory = $(this).val();
-            
-            $("table tbody tr").each(function() {
-                var rowCategory = $(this).data('category');
-                
-                if (selectedCategory === '') {
-                    // Show all rows when "All Categories" is selected
-                    $(this).show();
-                } else {
-                    // Show row only if category matches
-                    $(this).toggle(rowCategory === selectedCategory);
-                }
-            });
-        });
-    });
+    function filterByCategory(category) {
+        window.location.href = `manage_articles.php?category=${category}`;
+    }
     </script>
 </body>
-</html> 
+</html>
