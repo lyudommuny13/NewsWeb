@@ -1,7 +1,3 @@
-<div align="center">
-<img src="https://lyudommuny13.github.io/ldn-portfolio/photos/FoundationalCSwithMicrosoft.png" align="center" style="width: 100%" />
-</div>  
-  
 
 ### <div align="center">I'm Lyudommuny, a full-time full-stack freelance developer 👨‍💻</div>  
   
@@ -109,6 +105,10 @@ If things goes well, this section should automatically be replaced by a list of 
   
 
 <br/>  
+
+<div align="center">
+<img src="https://komarev.com/ghpvc/?username=lyudommuny13&&style=flat-square" align="center" />
+</div>  
   
 
 <br/>  
